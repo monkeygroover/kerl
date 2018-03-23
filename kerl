@@ -695,11 +695,15 @@ _do_build() {
 	echo "$SUM" >.kerl_config.md5
     fi
 
-    # Don't apply patches to "custom" git builds. We have no idea if they will apply
-    # cleanly or not.
-    if [ "$1" != 'git' ]; then
+    # By default don't apply patches to "custom" git builds, as we have no idea
+    # if they will apply cleanly or not. This can be overridden by passing --patch-git
+    # as the last parameter.
+    if [ "$1" = "git" ] && [ "5" = "--patch-git" ]; then
+        maybe_patch "$KERL_SYSTEM" "$2"
+    else
         maybe_patch "$KERL_SYSTEM" "$1"
     fi
+
     if [ -n "$KERL_USE_AUTOCONF" ]; then
         # shellcheck disable=SC2086
         ./otp_build autoconf $KERL_CONFIGURE_OPTIONS >>"$LOGFILE" 2>&1 && \
