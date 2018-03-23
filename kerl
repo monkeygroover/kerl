@@ -426,7 +426,8 @@ do_git_build() {
 }
 
 get_otp_version() {
-    echo "$1" | sed $SED_OPT -e 's/R?([0-9]{1,2}).+/\1/'
+    # find the first numeric portion of the specified release or git tag
+    echo $1 | sed $SED_OPT -e 's/[^0-9]*([0-9]{1,2}).*/\1/'
 }
 
 get_perl_version() {
@@ -1602,7 +1603,7 @@ apply_darwin_compiler_patch() {
 +++ erts/emulator/beam/beam_bp.c	2013-10-04 13:42:03.000000000 -0500
 @@ -496,7 +496,8 @@
  }
- 
+
  /* bp_hash */
 -ERTS_INLINE Uint bp_sched2ix() {
 +#ifndef ERTS_DO_INCL_GLB_INLINE_FUNC_DEF
@@ -1623,7 +1624,7 @@ apply_darwin_compiler_patch() {
 @@ -144,7 +144,19 @@
  #define ErtsSmpBPUnlock(BDC)
  #endif
- 
+
 -ERTS_INLINE Uint bp_sched2ix(void);
 +ERTS_GLB_INLINE Uint bp_sched2ix(void);
 +
@@ -1638,7 +1639,7 @@ apply_darwin_compiler_patch() {
 +#endif
 +}
 +#endif
- 
+
  #ifdef ERTS_SMP
  #define bp_sched2ix_proc(p) ((p)->scheduler_data->no - 1)
 _END_PATCH
@@ -1653,13 +1654,13 @@ apply_javadoc_linting_patch() {
 +++ lib/jinterface/doc/src/Makefile	2016-05-23 14:35:48.000000000 -0500
 @@ -142,7 +142,7 @@
  	rm -f errs core *~
- 
+
  jdoc:$(JAVA_SRC_FILES)
 -	(cd ../../java_src;$(JAVADOC) -sourcepath . -d $(JAVADOC_DEST) \
 +	(cd ../../java_src;$(JAVADOC) -Xdoclint:none -sourcepath . -d $(JAVADOC_DEST) \
  		-windowtitle $(JAVADOC_TITLE) $(JAVADOC_PKGS))
- 
- man: 
+
+ man:
 _END_PATCH
 }
 
@@ -1670,7 +1671,7 @@ apply_r14_beam_makeops_patch() {
 +++ erts/emulator/utils/beam_makeops	2016-05-23 21:41:08.000000000 -0500
 @@ -1576,7 +1576,7 @@
  	if $min_window{$key} > $min_window;
- 
+
      pop(@{$gen_transform{$key}})
 -	if defined @{$gen_transform{$key}}; # Fail
 +	if defined $gen_transform{$key}; # Fail
@@ -1690,7 +1691,7 @@ apply_r15_beam_makeops_patch() {
      $prev_last = pop(@{$gen_transform{$key}})
 -	if defined @{$gen_transform{$key}}; # Fail
 +	if defined $gen_transform{$key}; # Fail
- 
+
      if ($prev_last && !is_instr($prev_last, 'fail')) {
  	error("Line $line: A previous transformation shadows '$orig_transform'");
 _END_PATCH
@@ -1763,13 +1764,13 @@ index 656de7c49ad..4491d486837 100644
 @@ -1193,6 +1193,7 @@ typedef struct B2TContext_t {
      } u;
  } B2TContext;
- 
+
 +static B2TContext* b2t_export_context(Process*, B2TContext* src);
- 
+
  static uLongf binary2term_uncomp_size(byte* data, Sint size)
  {
 @@ -1225,7 +1226,7 @@ static uLongf binary2term_uncomp_size(byte* data, Sint size)
- 
+
  static ERTS_INLINE int
  binary2term_prepare(ErtsBinary2TermState *state, byte *data, Sint data_size,
 -		    B2TContext* ctx)
@@ -1809,7 +1810,7 @@ index 656de7c49ad..4491d486837 100644
 +
  	    if (erl_zlib_inflate_start(&ctx->u.uc.stream, bytes, size) != Z_OK)
  		return -1;
- 
+
  	    ctx->u.uc.dbytes = state->extp;
  	    ctx->u.uc.dleft = dest_len;
  	    ctx->state = B2TUncompressChunk;
@@ -1820,11 +1821,11 @@ index 656de7c49ad..4491d486837 100644
 @@ -1308,7 +1319,7 @@ erts_binary2term_prepare(ErtsBinary2TermState *state, byte *data, Sint data_size
  {
      Sint res;
- 
+
 -    if (binary2term_prepare(state, data, data_size, NULL) < 0 ||
 +    if (binary2term_prepare(state, data, data_size, NULL, NULL) < 0 ||
          (res=decoded_size(state->extp, state->extp + state->extsize, 0, NULL)) < 0) {
- 
+
          if (state->exttmp)
 @@ -1435,7 +1446,7 @@ static Eterm binary_to_term_int(Process* p, Uint32 flags, Eterm bin, Binary* con
              if (ctx->aligned_alloc) {
